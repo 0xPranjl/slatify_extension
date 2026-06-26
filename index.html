@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Slatify is a retro-styled Chrome extension and app for YouTube lecture notes, screenshots, drawings, and timestamped study sync." />
+  <title>Slatify | Retro Notes for YouTube</title>
+  <style>
+    :root {
+      --bg: #070812;
+      --panel: rgba(13, 16, 28, 0.78);
+      --panel-strong: rgba(20, 24, 40, 0.92);
+      --text: #f6efe5;
+      --muted: rgba(246, 239, 229, 0.7);
+      --line: rgba(255, 255, 255, 0.1);
+      --glow: rgba(255, 183, 77, 0.28);
+      --cyan: #64e5ff;
+      --amber: #ffcb5c;
+      --rose: #ff7a87;
+      --mint: #8cffc9;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+      --radius-xl: 30px;
+      --radius-lg: 22px;
+      --radius-md: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(255, 122, 135, 0.22), transparent 20%),
+        radial-gradient(circle at 82% 14%, rgba(100, 229, 255, 0.18), transparent 22%),
+        radial-gradient(circle at 50% 120%, rgba(255, 203, 92, 0.12), transparent 25%),
+        linear-gradient(135deg, #06070c 0%, #0b1020 42%, #120c1d 100%);
+      font-family: "Trebuchet MS", "Lucida Grande", "Verdana", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 92%);
+      opacity: 0.45;
+    }
+
+    body::after {
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.03) 0px,
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      opacity: 0.12;
+      mix-blend-mode: screen;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(1200px, calc(100vw - 28px));
+      margin: 14px auto;
+      border: 1px solid var(--line);
+      border-radius: 34px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(12, 15, 25, 0.75), rgba(6, 7, 12, 0.94));
+      box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(18px);
+      transform: translate3d(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 10px), 0);
+      transition: transform 120ms ease-out;
+      will-change: transform;
+    }
+
+    #fx-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.9;
+      filter: drop-shadow(0 0 10px rgba(100, 229, 255, 0.18));
+    }
+
+    .floating-shape {
+      position: fixed;
+      inset: auto;
+      pointer-events: none;
+      z-index: 0;
+      border-radius: 999px;
+      filter: blur(1px);
+      mix-blend-mode: screen;
+      opacity: 0.8;
+    }
+
+    .shape-one {
+      top: 12vh;
+      left: -5rem;
+      width: 18rem;
+      height: 18rem;
+      background: radial-gradient(circle, rgba(255, 203, 92, 0.22), transparent 62%);
+      animation: drift 16s ease-in-out infinite;
+    }
+
+    .shape-two {
+      top: 50vh;
+      right: -6rem;
+      width: 22rem;
+      height: 22rem;
+      background: radial-gradient(circle, rgba(100, 229, 255, 0.18), transparent 58%);
+      animation: drift 19s ease-in-out infinite reverse;
+    }
+
+    .shape-three {
+      bottom: -8rem;
+      left: 30%;
+      width: 24rem;
+      height: 24rem;
+      background: radial-gradient(circle, rgba(255, 122, 135, 0.16), transparent 60%);
+      animation: drift 21s ease-in-out infinite;
+    }
+
+    .shape-one,
+    .shape-two,
+    .shape-three {
+      transform: translate3d(calc(var(--px, 0) * 36px), calc(var(--py, 0) * 36px), 0);
+    }
+
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .orb {
+      width: 56px;
+      height: 56px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), transparent 32%),
+        linear-gradient(135deg, rgba(255, 203, 92, 0.25), rgba(100, 229, 255, 0.2));
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 0 35px rgba(255, 183, 77, 0.18);
+      animation: float 6s ease-in-out infinite;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.7rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      text-transform: uppercase;
+      line-height: 0.92;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      font-size: 11px;
+      letter-spacing: 0.46em;
+      text-transform: uppercase;
+      color: rgba(246, 239, 229, 0.5);
+      font-weight: 800;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      text-decoration: none;
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.22em;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+      white-space: nowrap;
+    }
+
+    .pill:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+    .pill.primary {
+      color: #0a0b10;
+      background: linear-gradient(90deg, var(--amber), #ff9f5a, var(--rose));
+      box-shadow: 0 0 32px rgba(255, 155, 74, 0.35);
+    }
+    .pill.primary:hover { background: linear-gradient(90deg, #ffe28d, #ffb169, #ff8d97); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.12fr 0.88fr;
+      gap: 22px;
+      padding: 28px;
+    }
+
+    .panel {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      box-shadow: 0 14px 50px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+
+    .hero-copy {
+      padding: 30px;
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: fit-content;
+      border: 1px solid rgba(255, 203, 92, 0.2);
+      background: rgba(255, 203, 92, 0.08);
+      color: #ffeab2;
+      border-radius: 999px;
+      padding: 11px 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.35em;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    h2 {
+      margin: 16px 0 0;
+      font-size: clamp(3.2rem, 8vw, 5.8rem);
+      line-height: 0.9;
+      letter-spacing: -0.1em;
+      text-transform: uppercase;
+    }
+
+    .lede {
+      max-width: 64ch;
+      margin: 18px 0 0;
+      color: var(--muted);
+      line-height: 1.85;
+      font-size: 1.03rem;
+    }
+
+    .signal-rig {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+      margin-top: 24px;
+      padding: 16px 18px;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background:
+        linear-gradient(135deg, rgba(255, 203, 92, 0.09), rgba(100, 229, 255, 0.06)),
+        rgba(255, 255, 255, 0.03);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .signal-rig::before {
+      content: "";
+      position: absolute;
+      inset: -40% -10%;
+      background: linear-gradient(120deg, transparent 30%, rgba(255, 255, 255, 0.18) 50%, transparent 70%);
+      transform: translateX(-65%);
+      animation: sweep 5.8s linear infinite;
+      opacity: 0.7;
+    }
+
+    .signal-core {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      display: grid;
+      place-items: center;
+      flex: none;
+    }
+
+    .signal-core span {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+    }
+
+    .signal-core .ring-1 {
+      inset: 0;
+      background: radial-gradient(circle, rgba(255, 203, 92, 0.34), rgba(255, 203, 92, 0.06) 54%, transparent 64%);
+      animation: pulse 2.8s ease-in-out infinite;
+    }
+
+    .signal-core .ring-2 {
+      inset: 11px;
+      border-color: rgba(100, 229, 255, 0.42);
+      animation: spin 12s linear infinite;
+    }
+
+    .signal-core .ring-3 {
+      inset: 22px;
+      border-color: rgba(255, 122, 135, 0.42);
+      animation: spin 8s linear infinite reverse;
+    }
+
+    .signal-core .dot {
+      width: 16px;
+      height: 16px;
+      z-index: 1;
+      background: radial-gradient(circle, #ffffff, var(--amber));
+      box-shadow: 0 0 18px rgba(255, 203, 92, 0.9);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    .signal-text {
+      display: grid;
+      gap: 8px;
+    }
+
+    .signal-text .label {
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.54);
+    }
+
+    .signal-text .meter {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(0, 0, 0, 0.26);
+    }
+
+    .signal-text .meter i {
+      display: block;
+      height: 100%;
+      width: 72%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--rose), var(--amber), var(--cyan));
+      box-shadow: 0 0 18px rgba(100, 229, 255, 0.28);
+      animation: surge 3s ease-in-out infinite;
+    }
+
+    .signal-text .sub {
+      font-size: 0.92rem;
+      line-height: 1.75;
+      color: rgba(255, 255, 255, 0.74);
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 1.55rem;
+      line-height: 1;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+      color: #fff0c7;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 7px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: rgba(246, 239, 229, 0.5);
+    }
+
+    .mockup {
+      padding: 18px;
+      min-height: 560px;
+      background:
+        radial-gradient(circle at top left, rgba(255, 203, 92, 0.16), transparent 35%),
+        radial-gradient(circle at bottom right, rgba(100, 229, 255, 0.14), transparent 38%),
+        var(--panel-strong);
+    }
+
+    .visual-stack {
+      display: grid;
+      grid-template-rows: minmax(320px, 1.2fr) auto;
+      gap: 14px;
+      height: 100%;
+    }
+
+    .feature-poster {
+      position: relative;
+      overflow: hidden;
+      border-radius: 28px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: #07090f;
+      min-height: 0;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 60px rgba(0, 0, 0, 0.52);
+    }
+
+    .feature-poster img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      transform: scale(1.01);
+    }
+
+    .feature-poster::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(5, 7, 12, 0.08), rgba(5, 7, 12, 0.45)),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 30%, transparent 70%, rgba(0, 0, 0, 0.28));
+      pointer-events: none;
+    }
+
+    .poster-badge {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      background: rgba(8, 10, 18, 0.7);
+      backdrop-filter: blur(12px);
+      text-transform: uppercase;
+      letter-spacing: 0.3em;
+      font-size: 10px;
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.86);
+    }
+
+    .poster-caption {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1;
+      max-width: min(320px, 70%);
+      padding: 14px 16px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(8, 10, 18, 0.66);
+      backdrop-filter: blur(12px);
+    }
+
+    .poster-caption strong {
+      display: block;
+      font-size: 0.95rem;
+      letter-spacing: -0.03em;
+      text-transform: uppercase;
+    }
+
+    .poster-caption span {
+      display: block;
+      margin-top: 6px;
+      color: rgba(255, 255, 255, 0.68);
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+
+    .image-rail {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 14px;
+      align-items: stretch;
+    }
+
+    .phone-shot,
+    .toolbar-shot {
+      position: relative;
+      overflow: hidden;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.04);
+      box-shadow: 0 14px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    .phone-shot {
+      min-height: 220px;
+    }
+
+    .phone-shot img,
+    .toolbar-shot img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .phone-shot img {
+      object-position: top center;
+    }
+
+    .toolbar-shot img {
+      object-position: center;
+    }
+
+    .phone-shot::before {
+      content: "Mobile app";
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      z-index: 1;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.86);
+      color: #0b0d14;
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-size: 9px;
+      font-weight: 900;
+    }
+
+    .toolbar-shot {
+      min-height: 220px;
+      display: grid;
+      place-items: center;
+      background: #111318;
+    }
+
+    .toolbar-shot::before {
+      content: "Overlay controls";
+      position: absolute;
+      left: 14px;
+      top: 14px;
+      z-index: 1;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(8, 10, 18, 0.72);
+      color: rgba(255, 255, 255, 0.88);
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-size: 9px;
+      font-weight: 900;
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .toolbar-shot img {
+      object-fit: contain;
+      padding: 26px 18px;
+      filter: drop-shadow(0 18px 28px rgba(0, 0, 0, 0.45));
+      transform: scale(1.02);
+    }
+
+    .screen {
+      height: 100%;
+      border-radius: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background:
+        linear-gradient(180deg, rgba(19, 24, 40, 0.94), rgba(9, 10, 18, 0.97));
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .screen-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .lights {
+      display: flex;
+      gap: 7px;
+    }
+
+    .lights i {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .lights i:nth-child(1) { background: #ff6b77; }
+    .lights i:nth-child(2) { background: #ffd35e; }
+    .lights i:nth-child(3) { background: #6cf2a0; }
+
+    .screen-chip {
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.58);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+    }
+
+    .screen-body {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 14px;
+      padding: 16px;
+      height: calc(100% - 58px);
+    }
+
+    .card {
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 18px;
+    }
+
+    .card h3 {
+      margin: 12px 0 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.05em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .card p {
+      margin: 12px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+
+    .tag-list {
+      display: grid;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .tag {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.24);
+      color: rgba(255, 255, 255, 0.83);
+      font-size: 0.92rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 14px rgba(255, 203, 92, 0.75);
+      flex: none;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 12px;
+    }
+
+    .timeline-item {
+      border-radius: 18px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .timeline-item .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.55);
+    }
+
+    .timeline-item strong {
+      display: block;
+      margin-top: 10px;
+      font-size: 1.05rem;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+      line-height: 1.25;
+    }
+
+    .feature-band {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      padding: 0 28px 28px;
+    }
+
+    .feature {
+      padding: 20px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      min-height: 180px;
+    }
+
+    .feature .icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 1.2rem;
+    }
+
+    .feature h4 {
+      margin: 16px 0 0;
+      font-size: 1.1rem;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+    }
+
+    .feature p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.92rem;
+    }
+
+    .how {
+      display: grid;
+      grid-template-columns: 0.95fr 1.05fr;
+      gap: 14px;
+      padding: 0 28px 28px;
+    }
+
+    .how .panel {
+      padding: 24px;
+      border-radius: 24px;
+    }
+
+    .mini-title {
+      margin: 0;
+      color: #ffeab2;
+      text-transform: uppercase;
+      font-size: 10px;
+      letter-spacing: 0.45em;
+      font-weight: 900;
+    }
+
+    .how h3 {
+      margin: 12px 0 0;
+      font-size: 2.1rem;
+      line-height: 0.95;
+      letter-spacing: -0.06em;
+      text-transform: uppercase;
+    }
+
+    .how .copy {
+      margin: 14px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+    }
+
+    .bullet-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .bullet {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 13px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .bullet b {
+      display: inline-grid;
+      place-items: center;
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      background: rgba(255, 203, 92, 0.15);
+      color: #ffeab2;
+      font-size: 12px;
+      font-weight: 900;
+      flex: none;
+    }
+
+    .bullet span {
+      color: rgba(255, 255, 255, 0.84);
+      line-height: 1.6;
+    }
+
+    .footer {
+      padding: 0 28px 28px;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 18px 20px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-weight: 900;
+    }
+
+    .footer-inner a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .marquee {
+      overflow: hidden;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .marquee-track {
+      display: inline-flex;
+      gap: 32px;
+      padding: 12px 0;
+      width: max-content;
+      animation: marquee 22s linear infinite;
+      text-transform: uppercase;
+      letter-spacing: 0.38em;
+      font-size: 11px;
+      font-weight: 900;
+      color: rgba(255, 255, 255, 0.52);
+    }
+
+    .marquee-track span { white-space: nowrap; }
+
+    .glow-line {
+      position: absolute;
+      inset: auto 0 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amber), var(--cyan), transparent);
+      opacity: 0.72;
+      filter: blur(1px);
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    @keyframes drift {
+      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+      33% { transform: translate3d(24px, -18px, 0) scale(1.05); }
+      66% { transform: translate3d(-14px, 20px, 0) scale(0.98); }
+    }
+
+    @keyframes orbit {
+      from { transform: rotate(0deg) translate3d(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 10px), 0); }
+      to { transform: rotate(360deg) translate3d(calc(var(--px, 0) * 10px), calc(var(--py, 0) * 10px), 0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.85; }
+      50% { transform: scale(1.08); opacity: 1; }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes surge {
+      0%, 100% { width: 58%; }
+      35% { width: 88%; }
+      70% { width: 66%; }
+    }
+
+    @keyframes sweep {
+      from { transform: translateX(-70%) skewX(-14deg); }
+      to { transform: translateX(70%) skewX(-14deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .orb,
+      .marquee-track,
+      .shape-one,
+      .shape-two,
+      .shape-three,
+      .floating-shape {
+        animation: none !important;
+      }
+    }
+
+    @media (max-width: 960px) {
+      .hero, .how {
+        grid-template-columns: 1fr;
+      }
+
+      .feature-band {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .screen-body {
+        grid-template-columns: 1fr;
+      }
+
+      .image-rail {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        width: min(100vw - 14px, 1200px);
+        margin: 7px auto;
+        border-radius: 24px;
+      }
+
+      .bar, .hero, .feature-band, .how, .footer {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .hero-copy, .mockup {
+        min-height: auto;
+      }
+
+      .hero-copy {
+        padding: 20px;
+      }
+
+      .feature-band {
+        grid-template-columns: 1fr;
+        padding-bottom: 14px;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+
+      .bar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .cta-row {
+        flex-direction: column;
+      }
+
+      .pill {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+    <canvas id="fx-canvas" aria-hidden="true"></canvas>
+    <div class="floating-shape shape-one" aria-hidden="true"></div>
+    <div class="floating-shape shape-two" aria-hidden="true"></div>
+    <div class="floating-shape shape-three" aria-hidden="true"></div>
+    <svg class="floating-shape" aria-hidden="true" viewBox="0 0 400 400" style="top: 8vh; right: 10vw; width: 210px; height: 210px; animation: orbit 18s linear infinite;">
+      <defs>
+        <linearGradient id="orbitalGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#64e5ff" stop-opacity="0.15" />
+          <stop offset="50%" stop-color="#ffcb5c" stop-opacity="0.26" />
+          <stop offset="100%" stop-color="#ff7a87" stop-opacity="0.18" />
+        </linearGradient>
+      </defs>
+      <circle cx="200" cy="200" r="126" fill="none" stroke="url(#orbitalGradient)" stroke-width="2" stroke-dasharray="10 14" />
+      <circle cx="200" cy="200" r="82" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2" />
+      <path d="M200 74C240 104 256 156 252 200C248 244 228 296 200 326C172 296 152 244 148 200C144 156 160 104 200 74Z" fill="rgba(255,255,255,0.03)" stroke="rgba(255,255,255,0.12)" />
+      <circle cx="200" cy="200" r="20" fill="#ffeab2" opacity="0.85" />
+    </svg>
+    <div class="wrap">
+    <header class="bar">
+      <div class="brand">
+        <div class="orb" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 20.2C9.2 17 12.5 14.8 16 13.2C18.5 12.1 21 10.4 22.5 7.2" stroke="#11131f" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M7.8 8.1L20.4 8.1L20.4 20.7" stroke="#11131f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p>Retro Study System</p>
+          <h1>Slatify</h1>
+        </div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <a class="pill" href="#features">Features</a>
+        <a class="pill" href="#how">How it works</a>
+        <a class="pill primary" href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Chrome Extension</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="panel hero-copy">
+        <div>
+          <div class="eyebrow">
+            <span>Neon note-taking for YouTube lectures</span>
+          </div>
+          <h2>Turn lectures into a memory machine.</h2>
+          <p class="lede">
+            Slatify is built for people who want their YouTube study sessions to feel fast, visual, and impossible to forget.
+            Capture timestamped notes, draw on the moment, grab screenshots, and sync the whole flow to the app.
+          </p>
+          <div class="signal-rig" aria-hidden="true">
+            <div class="signal-core">
+              <span class="ring-1"></span>
+              <span class="ring-2"></span>
+              <span class="ring-3"></span>
+              <span class="dot"></span>
+            </div>
+            <div class="signal-text">
+              <div class="label">Real-time capture signal</div>
+              <div class="meter"><i></i></div>
+              <div class="sub">The interface pulses like a studio console while your notes stay locked to the lecture.</div>
+            </div>
+          </div>
+          <div class="cta-row">
+            <a class="pill primary" href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Install Extension</a>
+            <a class="pill" href="https://play.google.com/store/apps/details?id=com.slatify" target="_blank" rel="noreferrer">Get the App</a>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <strong>3</strong>
+            <span>capture modes</span>
+          </div>
+          <div class="stat">
+            <strong>MAX</strong>
+            <span>focus energy</span>
+          </div>
+          <div class="stat">
+            <strong>SYNC</strong>
+            <span>browser to app</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel mockup">
+        <div class="visual-stack">
+          <div class="feature-poster">
+            <img src="./3.jpeg" alt="Slatify extension promotional artwork showing YouTube note-taking and timestamped capture." loading="eager" fetchpriority="high" />
+            <div class="poster-badge">Chrome extension • YouTube notes</div>
+            <div class="poster-caption">
+              <strong>Take notes from YouTube in one click</strong>
+              <span>Use the extension while you watch, then carry the study flow into the app.</span>
+            </div>
+          </div>
+
+          <div class="image-rail">
+            <div class="phone-shot">
+              <img src="./1.jpeg" alt="Slatify mobile app dashboard showing your notes, courses, and recent activity." loading="lazy" />
+            </div>
+            <div class="toolbar-shot">
+              <img src="./2.jpg" alt="Slatify overlay toolbar with save and annotation controls." loading="lazy" />
+            </div>
+          </div>
+
+          <div class="screen">
+            <div class="screen-top">
+              <div class="lights"><i></i><i></i><i></i></div>
+              <div class="screen-chip">Visual proof</div>
+            </div>
+            <div class="screen-body">
+              <div class="card">
+                <div class="eyebrow" style="margin: 0;">Current mode</div>
+                <h3>Chrome, phone, and overlay all in one story.</h3>
+                <p>
+                  The promo art, app dashboard, and toolbar strip show the full loop: capture in the browser, organize in the app, and keep the tool in view while you work.
+                </p>
+                <div class="tag-list">
+                  <div class="tag"><span class="dot"></span> Timestamped notes</div>
+                  <div class="tag"><span class="dot" style="background: var(--cyan); box-shadow: 0 0 14px rgba(100,229,255,0.75);"></span> Screenshot capture</div>
+                  <div class="tag"><span class="dot" style="background: var(--rose); box-shadow: 0 0 14px rgba(255,122,135,0.75);"></span> Drawing overlay</div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="eyebrow" style="margin: 0;">What the images prove</div>
+                <h3>Slatify is a real workflow, not just a pretty concept.</h3>
+                <p>
+                  The visuals show the extension in action, the mobile app as the home base, and the compact overlay as the fast capture layer.
+                </p>
+                <div class="timeline" style="margin-top: 18px;">
+                  <div class="timeline-item">
+                    <div class="top"><span>Extension</span><span>capture while watching</span></div>
+                    <strong>"Take notes from YouTube in one click."</strong>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="top"><span>App</span><span>organized view</span></div>
+                    <strong>"Your slates live on the dashboard."</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="marquee">
+              <div class="marquee-track">
+                <span>Timestamped notes</span><span>Retro UI energy</span><span>Chrome extension</span><span>Mobile app pairing</span><span>Screenshot capture</span><span>Drawing overlay</span>
+                <span>Timestamped notes</span><span>Retro UI energy</span><span>Chrome extension</span><span>Mobile app pairing</span><span>Screenshot capture</span><span>Drawing overlay</span>
+              </div>
+            </div>
+            <div class="glow-line"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="feature-band">
+      <article class="feature">
+        <div class="icon">⏱</div>
+        <h4>Timestamped capture</h4>
+        <p>Lock every thought to the exact frame that triggered it so your notes still make sense later.</p>
+      </article>
+      <article class="feature">
+        <div class="icon">✎</div>
+        <h4>Draw and highlight</h4>
+        <p>Sketch emphasis straight over the video with a visual language that feels deliberate, not messy.</p>
+      </article>
+      <article class="feature">
+        <div class="icon">▣</div>
+        <h4>Screen grabs</h4>
+        <p>Capture the slide, the diagram, or the exact visual clue that makes the lesson stick.</p>
+      </article>
+      <article class="feature">
+        <div class="icon">⇄</div>
+        <h4>App sync</h4>
+        <p>Move the study trail from browser to mobile so the momentum stays with you after you close the laptop.</p>
+      </article>
+    </section>
+
+    <section id="how" class="how">
+      <div class="panel">
+        <p class="mini-title">How it works</p>
+        <h3>Three moves. Zero clutter.</h3>
+        <p class="copy">
+          This is intentionally simple: watch, capture, sync. The experience is designed to feel like a neon command console for learning.
+        </p>
+        <div class="bullet-list">
+          <div class="bullet"><b>01</b><span>Keep YouTube open and start taking notes right where the content is happening.</span></div>
+          <div class="bullet"><b>02</b><span>Add screenshots, drawings, and timestamps so every note has context.</span></div>
+          <div class="bullet"><b>03</b><span>Use the app to carry those notes into your phone and continue later.</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <p class="mini-title">Why it feels different</p>
+        <h3>It looks like a retro arcade cabinet, but it behaves like a study weapon.</h3>
+        <p class="copy">
+          The visual direction is bold on purpose. Slatify should feel tactile, memorable, and a little bit magical so the study process has personality.
+        </p>
+        <div class="bullet-list">
+          <div class="bullet"><b>◎</b><span>Built for fast capture while you keep watching.</span></div>
+          <div class="bullet"><b>◎</b><span>Designed to be memorable enough to use every day.</span></div>
+          <div class="bullet"><b>◎</b><span>Clear entry points for both the Chrome extension and the app.</span></div>
+        </div>
+        <div class="cta-row" style="margin-top: 22px;">
+          <a class="pill" href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Extension Link</a>
+          <a class="pill" href="https://play.google.com/store/apps/details?id=com.slatify" target="_blank" rel="noreferrer">App Link</a>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Slatify Chrome Extension</span>
+        <a href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Chrome Web Store</a>
+        <a href="https://play.google.com/store/apps/details?id=com.slatify" target="_blank" rel="noreferrer">Slatify App</a>
+      </div>
+    </footer>
+  </div>
+  <script>
+    (() => {
+      const canvas = document.getElementById('fx-canvas');
+      if (!(canvas instanceof HTMLCanvasElement)) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const root = document.documentElement;
+      const state = {
+        w: 0,
+        h: 0,
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+        particles: [],
+        beams: [],
+        t: 0,
+        px: 0,
+        py: 0,
+        targetPx: 0,
+        targetPy: 0,
+      };
+
+      const rand = (min, max) => min + Math.random() * (max - min);
+      const choose = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+      function resize() {
+        state.w = window.innerWidth;
+        state.h = window.innerHeight;
+        state.dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(state.w * state.dpr);
+        canvas.height = Math.floor(state.h * state.dpr);
+        canvas.style.width = `${state.w}px`;
+        canvas.style.height = `${state.h}px`;
+        ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+
+        const count = Math.max(28, Math.min(80, Math.floor((state.w * state.h) / 22000)));
+        state.particles = Array.from({ length: count }, () => ({
+          x: rand(0, state.w),
+          y: rand(0, state.h),
+          r: rand(1.2, 3.2),
+          vx: rand(-0.15, 0.18),
+          vy: rand(-0.08, 0.12),
+          hue: choose(['#64e5ff', '#ffcb5c', '#ff7a87', '#8cffc9']),
+          phase: rand(0, Math.PI * 2),
+        }));
+
+        state.beams = Array.from({ length: 4 }, (_, i) => ({
+          x: state.w * (0.18 + i * 0.22) + rand(-60, 60),
+          y: rand(state.h * 0.08, state.h * 0.88),
+          length: rand(state.h * 0.18, state.h * 0.42),
+          speed: rand(0.15, 0.36) * (i % 2 ? -1 : 1),
+          width: rand(1.4, 2.4),
+          hue: choose(['rgba(100,229,255,0.45)', 'rgba(255,203,92,0.4)', 'rgba(255,122,135,0.35)']),
+        }));
+      }
+
+      function setParallax(x, y) {
+        state.targetPx = x;
+        state.targetPy = y;
+      }
+
+      function drawBackground() {
+        const gradient = ctx.createRadialGradient(state.w * 0.24, state.h * 0.14, 0, state.w * 0.5, state.h * 0.5, state.w);
+        gradient.addColorStop(0, 'rgba(255, 203, 92, 0.05)');
+        gradient.addColorStop(0.45, 'rgba(100, 229, 255, 0.04)');
+        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, state.w, state.h);
+      }
+
+      function drawGrid() {
+        ctx.save();
+        ctx.globalAlpha = 0.18;
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+        ctx.lineWidth = 1;
+        const step = Math.max(56, Math.round(Math.min(state.w, state.h) / 16));
+        for (let x = (state.t * 0.02) % step; x < state.w; x += step) {
+          ctx.beginPath();
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, state.h);
+          ctx.stroke();
+        }
+        for (let y = (state.t * 0.014) % step; y < state.h; y += step) {
+          ctx.beginPath();
+          ctx.moveTo(0, y);
+          ctx.lineTo(state.w, y);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      function drawBeams() {
+        for (const beam of state.beams) {
+          beam.y += beam.speed;
+          if (beam.y < -beam.length) beam.y = state.h + beam.length;
+          if (beam.y > state.h + beam.length) beam.y = -beam.length;
+
+          const grad = ctx.createLinearGradient(beam.x, beam.y, beam.x, beam.y + beam.length);
+          grad.addColorStop(0, 'rgba(255,255,255,0)');
+          grad.addColorStop(0.25, beam.hue);
+          grad.addColorStop(0.6, 'rgba(255,255,255,0.08)');
+          grad.addColorStop(1, 'rgba(255,255,255,0)');
+
+          ctx.save();
+          ctx.globalCompositeOperation = 'screen';
+          ctx.lineWidth = beam.width;
+          ctx.strokeStyle = grad;
+          ctx.shadowColor = beam.hue;
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.moveTo(beam.x, beam.y);
+          ctx.lineTo(beam.x + Math.sin(state.t * 0.01 + beam.x * 0.002) * 12, beam.y + beam.length);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+
+      function drawParticles() {
+        for (let i = 0; i < state.particles.length; i++) {
+          const p = state.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.phase += 0.02;
+
+          if (p.x < -20) p.x = state.w + 20;
+          if (p.x > state.w + 20) p.x = -20;
+          if (p.y < -20) p.y = state.h + 20;
+          if (p.y > state.h + 20) p.y = -20;
+
+          const pulse = 0.65 + Math.sin(state.t * 0.02 + p.phase) * 0.35;
+          ctx.beginPath();
+          ctx.fillStyle = p.hue;
+          ctx.globalAlpha = pulse;
+          ctx.arc(p.x, p.y, p.r + pulse * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.globalAlpha = 1;
+        }
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'screen';
+        for (let i = 0; i < state.particles.length; i++) {
+          for (let j = i + 1; j < state.particles.length; j++) {
+            const a = state.particles[i];
+            const b = state.particles[j];
+            const dx = a.x - b.x;
+            const dy = a.y - b.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 170) continue;
+            const alpha = (1 - dist / 170) * 0.18;
+            ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      function drawScanline() {
+        const y = (state.t * 0.9) % state.h;
+        const grad = ctx.createLinearGradient(0, y - 60, 0, y + 60);
+        grad.addColorStop(0, 'rgba(100,229,255,0)');
+        grad.addColorStop(0.5, 'rgba(100,229,255,0.06)');
+        grad.addColorStop(1, 'rgba(255,203,92,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, y - 60, state.w, 120);
+      }
+
+      function frame() {
+        state.t += 1;
+        state.px += (state.targetPx - state.px) * 0.08;
+        state.py += (state.targetPy - state.py) * 0.08;
+        root.style.setProperty('--px', state.px.toFixed(4));
+        root.style.setProperty('--py', state.py.toFixed(4));
+        ctx.clearRect(0, 0, state.w, state.h);
+        drawBackground();
+        drawGrid();
+        drawBeams();
+        drawParticles();
+        drawScanline();
+        if (!reduced) requestAnimationFrame(frame);
+      }
+
+      resize();
+      window.addEventListener('pointermove', (event) => {
+        const x = (event.clientX / Math.max(1, window.innerWidth) - 0.5) * 2;
+        const y = (event.clientY / Math.max(1, window.innerHeight) - 0.5) * 2;
+        setParallax(x, y);
+      }, { passive: true });
+      window.addEventListener('pointerleave', () => setParallax(0, 0), { passive: true });
+      if (!reduced) {
+        requestAnimationFrame(frame);
+      } else {
+        root.style.setProperty('--px', '0');
+        root.style.setProperty('--py', '0');
+        frame();
+      }
+
+      window.addEventListener('resize', resize, { passive: true });
+    })();
+  </script>
+</body>
+</html>
