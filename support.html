@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Slatify support page with setup steps, troubleshooting, and quick answers for the Chrome extension and app." />
+  <title>Slatify Support</title>
+  <style>
+    :root {
+      --bg: #070812;
+      --panel: rgba(13, 16, 28, 0.82);
+      --panel-strong: rgba(20, 24, 40, 0.94);
+      --text: #f6efe5;
+      --muted: rgba(246, 239, 229, 0.72);
+      --line: rgba(255, 255, 255, 0.1);
+      --cyan: #64e5ff;
+      --amber: #ffcb5c;
+      --rose: #ff7a87;
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 10%, rgba(255, 122, 135, 0.22), transparent 20%),
+        radial-gradient(circle at 82% 14%, rgba(100, 229, 255, 0.18), transparent 22%),
+        radial-gradient(circle at 50% 120%, rgba(255, 203, 92, 0.12), transparent 25%),
+        linear-gradient(135deg, #06070c 0%, #0b1020 42%, #120c1d 100%);
+      font-family: "Trebuchet MS", "Lucida Grande", "Verdana", sans-serif;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent 92%);
+      opacity: 0.45;
+    }
+
+    body::after {
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255, 255, 255, 0.03) 0px,
+        rgba(255, 255, 255, 0.03) 1px,
+        transparent 1px,
+        transparent 4px
+      );
+      opacity: 0.1;
+      mix-blend-mode: screen;
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(1080px, calc(100vw - 28px));
+      margin: 14px auto;
+      border: 1px solid var(--line);
+      border-radius: 32px;
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(12, 15, 25, 0.78), rgba(6, 7, 12, 0.94));
+      box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(18px);
+    }
+
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.01));
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .orb {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.55), transparent 32%),
+        linear-gradient(135deg, rgba(255, 203, 92, 0.25), rgba(100, 229, 255, 0.2));
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 900;
+      letter-spacing: -0.08em;
+      text-transform: uppercase;
+      line-height: 0.92;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      font-size: 11px;
+      letter-spacing: 0.42em;
+      text-transform: uppercase;
+      color: rgba(246, 239, 229, 0.5);
+      font-weight: 800;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.13);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      text-decoration: none;
+      text-transform: uppercase;
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 0.2em;
+      white-space: nowrap;
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .pill:hover { transform: translateY(-1px); background: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.2); }
+    .pill.primary {
+      color: #0a0b10;
+      background: linear-gradient(90deg, var(--amber), #ff9f5a, var(--rose));
+      box-shadow: 0 0 32px rgba(255, 155, 74, 0.35);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 18px;
+      padding: 24px;
+    }
+
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: 0 14px 50px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+    }
+
+    .copy {
+      padding: 28px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid rgba(255, 203, 92, 0.2);
+      background: rgba(255, 203, 92, 0.08);
+      color: #ffeab2;
+      border-radius: 999px;
+      padding: 10px 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.32em;
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    h2 {
+      margin: 16px 0 0;
+      font-size: clamp(2.8rem, 7vw, 4.8rem);
+      line-height: 0.92;
+      letter-spacing: -0.1em;
+      text-transform: uppercase;
+    }
+
+    .lede {
+      margin: 16px 0 0;
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 1rem;
+      max-width: 58ch;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 14px;
+      padding: 24px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .card h3 {
+      margin: 10px 0 0;
+      font-size: 1.05rem;
+      text-transform: uppercase;
+      letter-spacing: -0.03em;
+    }
+
+    .card p,
+    .faq p,
+    .note p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.94rem;
+    }
+
+    .icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 1.1rem;
+    }
+
+    .section {
+      padding: 0 24px 24px;
+    }
+
+    .section-title {
+      margin: 0 0 14px;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.44em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.52);
+    }
+
+    .faq-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .faq {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(0, 0, 0, 0.22);
+    }
+
+    .faq h3 {
+      margin: 0;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: -0.03em;
+    }
+
+    .note {
+      padding: 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background:
+        linear-gradient(135deg, rgba(100, 229, 255, 0.08), rgba(255, 203, 92, 0.08)),
+        rgba(0, 0, 0, 0.22);
+    }
+
+    .footer {
+      padding: 0 24px 24px;
+    }
+
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      padding: 16px 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.24em;
+      font-weight: 900;
+    }
+
+    .footer-inner a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .wrap {
+        width: min(100vw - 14px, 1080px);
+        margin: 7px auto;
+        border-radius: 24px;
+      }
+
+      .bar, .hero, .grid, .section, .footer {
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="bar">
+      <div class="brand">
+        <div class="orb" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M7 20.2C9.2 17 12.5 14.8 16 13.2C18.5 12.1 21 10.4 22.5 7.2" stroke="#11131f" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M7.8 8.1L20.4 8.1L20.4 20.7" stroke="#11131f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <p>Support Portal</p>
+          <h1>Slatify</h1>
+        </div>
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:12px;">
+        <a class="pill" href="index.html">Home</a>
+        <a class="pill" href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Chrome Extension</a>
+        <a class="pill primary" href="https://play.google.com/store/apps/details?id=com.slatify" target="_blank" rel="noreferrer">Slatify App</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="panel copy">
+        <div class="eyebrow">Need help with Slatify?</div>
+        <h2>Support that matches the product.</h2>
+        <p class="lede">
+          This page is here for Chrome Web Store support-link requirements and for users who need a fast path to setup help, troubleshooting, and product links.
+        </p>
+        <div class="actions">
+          <a class="pill primary" href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Open Extension</a>
+          <a class="pill" href="https://play.google.com/store/apps/details?id=com.slatify" target="_blank" rel="noreferrer">Open App</a>
+          <a class="pill" href="index.html">View Main Site</a>
+        </div>
+      </div>
+
+      <div class="panel grid">
+        <div class="card">
+          <div class="icon">⚙</div>
+          <h3>Install / load</h3>
+          <p>For local development, build the extension and load the generated `dist/` folder in Chrome’s Extensions page.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⌨</div>
+          <h3>Keyboard shortcut</h3>
+          <p>The overlay uses the `Alt+H` shortcut to toggle the writing layer while you are on YouTube.</p>
+        </div>
+        <div class="card">
+          <div class="icon">⇄</div>
+          <h3>Sync issues</h3>
+          <p>If app pairing is not working, make sure the extension and app are signed in and the current device is paired.</p>
+        </div>
+        <div class="card">
+          <div class="icon">✉</div>
+          <h3>Contact</h3>
+          <p>Use the official product channels from the listing if you need help with an account, sync, or feature request.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Frequently asked questions</h3>
+      <div class="faq-list">
+        <div class="faq">
+          <h3>How do I open the notes dashboard?</h3>
+          <p>Open the extension and click the dashboard / notes button, or visit the main Slatify site if you expose that link publicly.</p>
+        </div>
+        <div class="faq">
+          <h3>Why does the extension need YouTube access?</h3>
+          <p>Slatify is built around YouTube study sessions, so it needs access on YouTube pages to show the overlay and capture notes in context.</p>
+        </div>
+        <div class="faq">
+          <h3>How do I contact Slatify?</h3>
+          <p>Email <a href="mailto:pranjlmaurya2025@gmail.com" style="color: #ffeab2; text-decoration: none;">pranjlmaurya2025@gmail.com</a> or message <a href="https://instagram.com/slatify.app" target="_blank" rel="noreferrer" style="color: #ffeab2; text-decoration: none;">@slatify.app</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="note">
+        <h3 class="section-title" style="margin-bottom: 10px; color: rgba(255,255,255,0.7);">Contact</h3>
+        <p>
+          Email: <a href="mailto:pranjlmaurya2025@gmail.com" style="color: #ffeab2; text-decoration: none;">pranjlmaurya2025@gmail.com</a>
+        </p>
+        <p>
+          Instagram: <a href="https://instagram.com/slatify.app" target="_blank" rel="noreferrer" style="color: #ffeab2; text-decoration: none;">@slatify.app</a>
+        </p>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        <span>Slatify Support</span>
+        <a href="mailto:pranjlmaurya2025@gmail.com">Email</a>
+        <a href="https://instagram.com/slatify.app" target="_blank" rel="noreferrer">Instagram</a>
+        <a href="index.html">Main Site</a>
+        <a href="https://chromewebstore.google.com/detail/lnjpefmebhbnkffgbplojlhdgldhjnpp?utm_source=item-share-cb" target="_blank" rel="noreferrer">Chrome Store</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>
